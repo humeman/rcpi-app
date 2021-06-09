@@ -1,0 +1,799 @@
+#:kivy 1.10
+
+#:import kivyutils utils.kivyutils
+#:import motor utils.motor
+#:import settings utils.settings
+#:import websocket utils.websocket
+#:import sys sys
+
+# Configuration
+
+#:set version "1.0"
+#:set date "5/23/2021"
+
+# -> FONT SIZES
+#:set f_title 128
+#:set f_label 36
+#:set f_button 48
+#:set f_textarea 22
+#:set f_textinput 48
+#:set f_icon 72
+#:set f_header 72
+#:set f_text 48
+#:set f_small 36
+
+# -> COLORS
+#:set c_highlight 20/255, 183/255, 28/255, 1
+#:set c_font 154/255, 183/255, 164/255, 1
+
+#:set c_select 20/255, 183/255, 28/255, 1
+#:set c_unselect 87/255, 104/255, 93/255, 1
+
+#:set c_button_bg 154/255, 183/255, 164/255, 1
+#:set c_button 29/255, 33/255, 31/255, 1 
+
+#:set c_big_button_bg 20/255, 183/255, 28/255, 1
+#:set c_big_button 29/255, 33/255, 31/255, 1
+
+#:set c_background 29/255, 33/255, 31/255, 1
+#:set c_dark_background 15/255, 17/255, 16/255, 1
+
+#:set c_separator 154/255, 183/255, 164/255
+
+#:set c_err_highlight 181/255, 19/255, 19/255, 1
+#:set c_err_bg 32/255, 26/255, 26/255, 1
+
+# Generic widget configs
+<GridLayout>:
+    padding: 60
+
+<Widget>:
+    spacing: 20
+
+<TextInput>:
+    background_color: c_font
+    foreground_color: c_font
+    background_disabled_normal: 'img/widgets/textinput.png'
+    background_normal: 'img/widgets/textinput.png'
+    background_active: 'img/widgets/textinput.png'
+    font_name: "fonts/rubik/Rubik-Bold.ttf"
+    border: 16, 16, 16, 16
+    halign: "center"
+
+    # https://stackoverflow.com/questions/40477956/kivy-textinput-horizontal-and-vertical-align-centering-text
+    padding_y: [self.height / 2.0 - (self.line_height / 2.0) * len(self._lines), 0]
+
+<Label>:
+    font_name: "main"
+    halign: "left"
+    valign: "middle"
+    markup: True
+    color: c_font
+    font_size: f_label
+    size: self.texture_size
+    text_size: self.size
+
+<Button>:
+    background_normal: 'img/widgets/button.png'
+    background_down: 'img/widgets/button_down.png'
+
+<Window>:
+    clearcolor: c_background
+
+<Slider>:
+    orientation: 'horizontal'
+    value_track: True
+    value_track_color: c_highlight
+    background_color: c_font
+    cursor_disabled_image: 'img/widgets/slider.png'
+    cursor_image: 'img/widgets/slider.png'
+    color: c_font
+    cursor_color: c_font
+
+# Reusables
+<IconButton>:
+    background_normal: 'img/widgets/button.png'
+    background_down: 'img/widgets/button_down.png'
+    font_name: "fa"
+    background_color: c_big_button_bg
+    color: c_big_button
+    halign: "center"
+    font_size: f_icon
+
+<MovementButton>:
+    background_normal: ''
+    color: c_highlight
+
+<NavbarButton>:
+    background_normal: ''
+    background_down: 'img/widgets/button_down.png'
+    font_name: "fa"
+    background_color: c_background
+    color: c_highlight
+    halign: "center"
+    font_size: f_icon
+    on_press: kivyutils.switch_screen(self) #lambda *args: kivyutils.switch_screen(*args)
+
+<NavBar>:
+    cols: 1
+    rows: 2
+    padding: 0
+
+    Separator:
+        size_hint_y: .1
+
+    GridLayout:
+        rows: 1
+        padding: 0
+        size_hint_y: .9
+
+        NavbarButton:
+            id: drive_button
+            text: "\uf3fd"
+            color: c_select
+
+        NavbarButton:
+            id: control_button
+            text: "\uf013"
+            color: c_unselect
+
+        NavbarButton:
+            id: socket_button
+            text: "\uf1eb"
+            color: c_unselect
+
+        NavbarButton:
+            id: debug_button
+            text: "\uf121"
+            color: c_unselect
+
+        NavbarButton:
+            id: info_button
+            text: "\uf129"
+            color: c_unselect
+
+<Separator>:
+    id: separator
+    size_hint_y: None
+    height: 10
+    canvas:
+        Color:
+            rgb: c_separator
+        Rectangle:
+            pos: separator.x, separator.center_y
+            size: separator.width, 2
+
+# Screen manager setup
+<AScreenManager>:
+    id: screen_manager
+
+    DriveScreen:
+        id: drive_screen
+        name: "drive_screen"
+        manager: "screen_manager"
+
+    ControlScreen:
+        id: control_screen
+        name: "control_screen"
+        manager: "screen_manager"
+
+    SocketScreen:
+        id: socket_screen
+        name: "socket_screen"
+        manager: "screen_manager"
+
+    InfoScreen:
+        id: info_screen
+        name: "info_screen"
+        manager: "screen_manager"
+
+    DebugScreen:
+        id: debug_screen
+        name: "debug_screen"
+        manager: "screen_manager"
+
+    ErrorScreen:
+        id: error_screen
+        name: "error_screen"
+        manager: "screen_manager"
+
+# Screens
+<ControlScreen>:
+    GridLayout:
+        cols: 1
+
+        Label:
+            id: title_label
+            text: "Control"
+            halign: "center"
+            font_size: f_title
+            color: c_highlight
+            font_name: "title"
+            size_hint_y: .2
+
+        GridLayout:
+            id: main
+            cols: 1
+            padding: 0
+            size_hint_y: .6
+
+            Label:
+                text: "Connection"
+                halign: "left"
+                font_size: f_button
+                size_hint_y: .05
+            
+            GridLayout:
+                size_hint_y: .25
+                cols: 2
+                padding: 0
+
+                GridLayout:
+                    cols: 1
+                    padding: 0
+
+                    TextInput:
+                        id: ip_input
+                        text: "N/A"
+                        font_size: f_textinput
+                        multiline: False
+                        size_hint_x: .5
+                        size_hint_y: .5
+                        halign: "center"
+                        valign: "middle"
+
+                    GridLayout:
+                        cols: 3
+                        size_hint_y: .5
+                        padding: 0
+
+                        TextInput:
+                            id: ws_port_input
+                            text: "N/A"
+                            font_size: f_textinput
+                            multiline: False
+                            size_hint_x: .4
+                            halign: "center"
+                            valign: "middle"
+
+                        TextInput:
+                            id: mjpg_port_input
+                            text: "N/A"
+                            font_size: f_textinput
+                            multiline: False
+                            size_hint_x: .4
+                            halign: "center"
+                            valign: "middle"
+
+                        IconButton:
+                            id: security_toggle
+                            size_hint_x: .2
+                            text: "\uf060"
+                            background_color: c_font
+                            on_press: settings.toggle_secure(self)
+
+                Button:
+                    id: ip_accept
+                    text: "\uf00c"
+                    font_name: "fa"
+                    font_size: f_icon
+                    background_color: c_big_button_bg
+                    color: c_big_button
+                    halign: "center"
+                    size_hint_x: .2
+                    on_press: settings.update_ip()
+
+            Spacer:
+                size_hint_y: .05
+
+            Label:
+                text: "Auth key"
+                halign: "left"
+                font_size: f_button
+                size_hint_y: .05
+
+            GridLayout:
+                id: auth
+                cols: 2
+                padding: 0
+                size_hint_y: .15
+
+                TextInput:
+                    id: auth_input
+                    text: "N/A"
+                    font_size: f_textinput
+                    multiline: False
+                    size_hint_x: .5
+                    halign: "center"
+                    valign: "middle"
+
+                Button:
+                    id: auth_accept
+                    text: "\uf00c"
+                    font_name: "fa"
+                    font_size: f_icon
+                    background_color: c_big_button_bg
+                    color: c_big_button
+                    halign: "center"
+                    size_hint_x: .2
+                    on_press: settings.update_auth()
+
+            
+            GridLayout:
+                id: sliders
+                cols: 1
+                padding: 0
+                size_hint_y: .3
+
+                GridLayout:
+                    cols: 3
+                    padding: 0
+                    size_hint_y: 1/2
+
+                    Label:
+                        text: "Speed"
+                        size_hint_x: .3
+                        font_size: f_button
+
+                    Slider:
+                        id: speed_slider
+                        min: 10
+                        max: 100
+                        step: 5
+                        size_hint_x: .6                            
+                        on_touch_move: settings.update_speed()
+                        on_touch_up: settings.update_speed()
+
+                    Label:
+                        id: speed_label
+                        text: "N/A"
+                        size_hint_x: .1
+
+                GridLayout:
+                    cols: 3
+                    padding: 0
+                    size_hint_y: 1/2
+
+                    Label:
+                        text: "Turn Speed"
+                        size_hint_x: .3
+                        font_size: f_button
+
+                    Slider:
+                        id: turn_speed_slider
+                        min: 10
+                        max: 75
+                        step: 5
+                        size_hint_x: .6
+                        on_touch_move: settings.update_speed()
+                        on_touch_up: settings.update_speed()
+
+                    Label:
+                        id: turn_speed_label
+                        text: "N/A"
+                        size_hint_x: .1
+
+            Spacer:
+                size_hint_y: .05           
+
+            GridLayout:
+                cols: 2
+                size_hint_y: .1
+                padding: 0
+
+                Button:
+                    id: shutdown_button
+                    text: "Shut down"
+                    bold: True
+                    font_size: f_button
+                    background_color: c_big_button_bg
+                    color: c_big_button
+                    halign: "center"
+                    on_press: websocket.control("shutdown")
+
+                Button:
+                    id: reboot_button
+                    text: "Reboot"
+                    bold: True
+                    font_size: f_button
+                    background_color: c_big_button_bg
+                    color: c_big_button
+                    halign: "center"
+                    on_press: websocket.control("reboot")
+
+        NavBar:
+            id: navbar
+            size_hint_y: .1
+
+<VideoStream>:
+    cols: 1
+    padding: 0
+
+    MjpegViewer:
+        id: viewer
+        url: "http://192.168.1.73:8000/stream.mjpg"
+
+<NotConnected>:
+    cols: 1
+    padding: 0
+
+    Label:
+        text: "[b]Not connected![/b]\nVisit the socket page to connect."
+        font_size: f_header
+        color: c_font
+        halign: "center"
+
+<DriveScreen>:
+    GridLayout:
+        cols: 1
+
+        Label:
+            id: title_label
+            text: "Drive"
+            halign: "center"
+            font_size: f_title
+            color: c_highlight
+            font_name: "title"
+            size_hint_y: .2
+
+        GridLayout:
+            id: main
+            cols: 1
+            padding: 0
+            size_hint_y: .6
+            
+            # Placeholder
+            GridLayout:
+                id: video_container
+                cols: 1
+                padding: 0
+                size_hint_y: .5
+
+            GridLayout:
+                id: leftright
+                cols: 2
+                padding: 0
+                size_hint_y: .5
+
+                GridLayout:
+                    # Left/right
+                    id: leftright_container
+                    cols: 1
+                    size_hint_x: 2/3
+                    padding: 0
+
+                    Spacer:
+                        size_hint_y: 1/4
+
+                    GridLayout:
+                        id: leftright
+                        cols: 2
+                        padding: 0
+                        size_hint_y: 1/2
+
+                        IconButton:
+                            id: left
+                            text: "\uf060"
+                            on_press: websocket.drive() #motor.change_direction(self)
+                            on_release: websocket.drive() #motor.change_direction(self)
+
+                        IconButton:
+                            id: right
+                            text: "\uf061"
+                            on_press: websocket.drive() #motor.change_direction(self)
+                            on_release: websocket.drive() #motor.change_direction(self)
+
+                    Spacer:
+                        size_hint_y: 1/4
+
+                GridLayout:
+                    id: updown_container
+                    cols: 1
+                    padding: 0
+                    size_hint_x: 1/3
+
+                    GridLayout:
+                        cols: 1
+                        padding: 0
+                        id: updown
+
+                        IconButton:
+                            id: up
+                            text: "\uf062"
+                            on_press: websocket.drive() #motor.change_direction(self)
+                            on_release: websocket.drive() #motor.change_direction(self)
+
+                        IconButton:
+                            id: down
+                            text: "\uf063"
+                            on_press: websocket.drive() #motor.change_direction(self)
+                            on_release: websocket.drive() #motor.change_direction(self)
+            
+
+        NavBar:
+            id: navbar
+            size_hint_y: .1
+
+<SocketDisconnected>:
+    cols: 1
+    padding: 0
+
+    Label:
+        text: "[b]Ready to connect![/b]"
+        font_size: f_header
+        color: c_font
+        size_hint_y: .7
+        halign: "center"
+
+    IconButton:
+        id: connect
+        text: "\uf04b"
+        size_hint_y: .3
+        on_press: websocket.connect()
+
+<SocketConnected>:
+    cols: 1
+    padding: 0
+
+    ScrollView:
+        id: ti_container
+        size_hint_y: .7
+
+        TextInput:
+            id: socket_display
+            size_hint: 1, None
+            height: max( (len(self._lines)+1) * self.line_height, ti_container.height)
+            text: ""
+            halign: "left"
+            text_size: self.size
+            font_size: f_textarea
+            font_name: "monospace"
+            padding_y: 20
+            padding_x: 20
+
+    IconButton:
+        id: disconnect
+        text: "\uf011"
+        size_hint_y: .3
+        on_press: websocket.disconnect()
+
+<SocketScreen>:
+    GridLayout:
+        cols: 1
+
+        Label:
+            id: title_label
+            halign: "center"
+            text: "Socket"
+            font_size: f_title
+            color: c_highlight
+            font_name: "title"
+            size_hint_y: .2
+
+        GridLayout:
+            id: container
+            cols: 1
+            padding: 0
+            size_hint_y: .6
+
+        NavBar:
+            id: navbar
+            size_hint_y: .1
+
+<InfoScreen>:
+    GridLayout:
+        cols: 1
+
+        Label:
+            id: title_label
+            halign: "center"
+            text: "Info"
+            font_size: f_title
+            color: c_highlight
+            font_name: "title"
+            size_hint_y: .2
+
+        GridLayout:
+            id: main
+            cols: 1
+            padding: 0
+            size_hint_y: .6
+
+            Label:
+                id: app
+                font_size: f_header
+                color: c_font
+                halign: "left"
+                text_size: self.size
+                text: f"[b]RCController v{version}[/b] by Camden Senneff"
+                size_hint_y: .2
+
+            Label:
+                id: details
+                font_size: f_text
+                color: c_font
+                halign: "left"
+                text_size: self.size
+                size_hint_y: .6
+                text: f"This app controls a Raspberry Pi RC car running on my rc-pi framework.\nThe framework is available on GitHub at [i]humeman/rc-pi[/i].\nCreated using Kivy on Python 3. This build was last updated on {date}."
+
+            Label:
+                id: attribution
+                font_size: f_small
+                color: c_font
+                wrap: True
+                size_hint_y: .2
+                text: f"[b]Icons:[/b] Font Awesome Free 5.15.3 by @fontawesome - https://fontawesome.com (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)"
+                text_size: self.size
+                halign: "left"
+
+        NavBar:
+            id: navbar
+            size_hint_y: .1
+
+<DebugScreen>:
+    GridLayout:
+        cols: 1
+
+        Label:
+            id: title_label
+            halign: "center"
+            text: "Debug"
+            font_size: f_title
+            color: c_highlight
+            font_name: "title"
+            size_hint_y: .2
+
+        GridLayout:
+            id: main
+            cols: 1
+            padding: 0
+            size_hint_y: .6
+
+            GridLayout:
+                size_hint_y: .5
+                cols: 2
+                padding: 0
+
+                TextInput:
+                    id: db_editor
+                    size_hint_x: .7
+                    text: "None"
+                    halign: "left"
+                    valign: "top"
+                    text_size: self.size
+                    font_size: f_textarea
+                    font_name: "monospace"
+                    padding_y: 20
+                    padding_x: 20
+
+                GridLayout:
+                    cols: 1
+                    padding: 0
+                    size_hint_x: .3
+
+                    IconButton:
+                        id: save_db
+                        text: "\uf0c7"
+                        on_press: settings.update_db_manual()
+                    
+                    IconButton:
+                        id: restore_db
+                        text: "\uf00d"
+                        background_color: c_font
+                        on_press: settings.update_all()
+
+            GridLayout:
+                size_hint_y: .5
+                cols: 2
+                padding: 0
+
+                TextInput:
+                    id: code_executor
+                    size_hint_x: .7
+                    text: ""
+                    halign: "left"
+                    valign: "top"
+                    text_size: self.size
+                    font_size: f_textarea
+                    font_name: "monospace"
+                    padding_y: 20
+                    padding_x: 20
+
+                GridLayout:
+                    cols: 1
+                    padding: 0
+                    size_hint_x: .3
+
+                    IconButton:
+                        id: execute
+                        text: "\uf04b"
+                        on_press: settings.code_exec(self)
+                    
+                    IconButton:
+                        id: restore_code
+                        text: "\uf00d"
+                        background_color: c_font
+                        on_press: root.ids["code_executor"].text = ""                
+
+        NavBar:
+            id: navbar
+            size_hint_y: .1
+
+<ErrorScreen>:
+    GridLayout:
+        cols: 1
+
+        GridLayout:
+            cols: 2
+            padding: 0
+            size_hint_y: .2
+
+            Label:
+                id: title
+                text: "An error occurred!"
+                halign: "center"
+                font_size: f_title
+                color: c_err_highlight
+                font_name: "title"
+                size_hint_x: .8
+
+            IconButton:
+                id: exit
+                background_color: c_err_highlight
+                color: c_err_bg
+                text: "\uf00d"
+                size_hint_x: 0.2
+                size_hint_y: 1
+                on_press: sys.exit(-1)
+
+
+        Spacer:
+            size_hint_y: .05
+
+        GridLayout:
+            cols: 2
+            size_hint_y: .2
+            padding: 0
+
+            Label:
+                id: reason_label
+                size_hint_x: .3
+                bold: True
+                text: "Occurred during"
+                color: c_err_highlight
+                font_size: f_label
+
+            TextInput:
+                id: reason
+                size_hint_x: .7
+                text: "None"
+                size_hint_y: .1
+                multiline: False
+                font_size: f_textarea
+                valign: "left"
+                padding_y: 20
+
+        Spacer:
+            size_hint_y: .05
+
+        GridLayout: 
+            cols: 2
+            size_hint_y: .5
+
+            Label:
+                id: exception_label
+                bold: True
+                text: "Exception"
+                size_hint_x: .3
+                color: c_err_highlight
+                font_size: f_label
+
+            TextInput:
+                id: exception
+                text: "None"
+                size_hint_x: .7
+                multiline: True
+                font_size: f_textarea
+                valign: "left"
+                padding_y: 20
